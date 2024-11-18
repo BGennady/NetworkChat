@@ -1,20 +1,22 @@
 package ru.netology;
 
 import java.io.*;
-import java.net.*;
+import java.net.Socket;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Date;
+import java.util.Set;
 
 public class ClientHandler implements Runnable {
-    private static final String LOG_FILE = "file.log"; //файл для записи
-    private static final Set<ClientHandler> clients = new HashSet<>(); // коллекция всех клиентов
-    private final Socket clientSocket;  // cокет клиента
-    private BufferedReader reader;  // чтение сообщений от клиента
-    private PrintWriter writer;  // отправка сообщений клиенту
-    private String clientName;  // имя клиента
+    private static final String LOG_FILE = "file.log"; // файл для записи
+    final Socket clientSocket; // сокет клиента
+    private final Server server; // ссылка на сервер
+    BufferedReader reader; // чтение сообщений от клиента
+    public PrintWriter writer; // отправка сообщений клиенту
+    private String clientName; // имя клиента
 
-    public ClientHandler(Socket clientSocket) {
+    public ClientHandler(Socket clientSocket, Server server) {
         this.clientSocket = clientSocket;
+        this.server = server;
     }
 
     @Override
@@ -36,9 +38,7 @@ public class ClientHandler implements Runnable {
             broadcastMessage(clientName + " присоединился к чату.");
 
             // добавляем нового клиента в список
-            synchronized (clients) {
-                clients.add(this);
-            }
+            server.addClient(this);
 
             String message;
             while ((message = reader.readLine()) != null) {
@@ -59,13 +59,14 @@ public class ClientHandler implements Runnable {
         } finally {
             try {
                 // удаление клиента из списка, если он отключился
-                synchronized (clients) {
-                    clients.remove(this);
-                }
+                server.removeClient(this);
+
                 // логируем выход клиента
                 logMessage(clientName + " покинул чат.");
+
                 // уведомление всех клиентов о выходе
                 broadcastMessage(clientName + " покинул чат.");
+
                 // закрытие соединения с клиентом
                 clientSocket.close();
             } catch (IOException e) {
@@ -74,19 +75,23 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    // метод рассылки всем клиентам
-    private void broadcastMessage(String message) {
-        synchronized (clients) {
-            for (ClientHandler clientHandler : clients) {
-                if (clientHandler != this) {  // не отправляем сообщение отправителю
-                    clientHandler.writer.println(message);
-                }
+    // метод рассылки сообщений всем клиентам
+    void broadcastMessage(String message) {
+        Set<ClientHandler> clients = server.getClients(); // получаем текущий список клиентов
+        for (ClientHandler clientHandler : clients) {
+            if (clientHandler != this) { // не отправляем сообщение отправителю
+                clientHandler.sendMessage(message);
             }
         }
     }
 
+    // метод отправки сообщения конкретному клиенту
+    public void sendMessage(String message) {
+        writer.println(message);
+    }
+
     // метод для логирования сообщений в файл
-    private void logMessage(String message) {
+    void logMessage(String message) {
         try (FileWriter fw = new FileWriter(LOG_FILE, true);
              BufferedWriter bw = new BufferedWriter(fw)) {
             String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());

@@ -5,12 +5,10 @@ import java.io.FileReader;
 import java.io.IOException;
 
 public class Port {
-    private static final String SETTINGS_FILE = "settings.txt";  // путь к файлу с настройками
-    private static int port;  // переменная для хранения номера порта
 
     // метод чтения порта из файла
-    private static int readPortFromFile() {
-        try (BufferedReader reader = new BufferedReader(new FileReader(SETTINGS_FILE))) {
+   public static int getPort(String fileName) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(fileName))) {
             String line = reader.readLine();
             if (line != null && !line.isEmpty()) {
                 String[] parts = line.split("=");
@@ -20,13 +18,5 @@ public class Port {
             System.err.println("Ошибка чтения файла настроек: " + e.getMessage());
         }
         return -1;  // -1, если порт не найден или произошла ошибка
-    }
-
-    // метод для получения порта
-    public static int getPort() {
-        if (port == 0) {
-            port = readPortFromFile();  // Возвращаем номер порта, если еще не инициализирован
-        }
-        return port;
     }
 }
